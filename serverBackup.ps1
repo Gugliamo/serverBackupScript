@@ -8,7 +8,7 @@ $sourceFolderName = (split-path $mapBackupSource -Leaf).ToString()
 $mapBackupDestination = 'E:\powershellTests\destination'
 #$serverBackupDestination = 
 
-#TEST
+#TEST22
 
 #copy the folder from source to destination recursively, adding date and time to destination folder
 
