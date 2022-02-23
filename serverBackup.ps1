@@ -114,9 +114,99 @@ function Test-AGValidate{
     } elseif(!($SrcItemCount -eq $DestItemCount)) {
         write-host("!!ERROR!! Source and Destination folder item counts are different.`nCheck logs for details.")
     } else {
-        Write-Host("Source and Destination folder sizes and item counts match.`nTask completed successfully.")
+        Write-Host("Source and Destination folder sizes and item counts match.")
     }
 }
+
+#perform check on number of backups
+function Get-AGNumberOfBackups{
+    param([string]$DestPath)
+
+    #count number of folders in backup folder
+    $FolderCount = (get-childitem -Path $DestPath | where-object { $_.PSIsContainer }).Count
+
+    Write-Host("There are currently $FolderCount folders in the backup folder.")
+
+    #if more than 5 backups exist, ask user if they would like to delete older backup folders
+    while($FolderCount -gt 5){
+        $ToRemove = Read-Host "Would you like to delete some of the oldest backup(s)? (Y/N)"
+
+        if($ToRemove -like "y"){
+            Remove-AGBackups -DestFolder $DestPath
+            break 
+        } elseif($ToRemove -like "n") {
+            break
+        } else {
+            Write-Host("Invalid input.")
+            continue
+        }
+        break
+    }
+}
+
+#function handling deletion of backups
+function Remove-AGBackups{
+    param([string]$DestFolder)
+
+    while(1){
+        #ask user if they would like folders to be displayed (newest to oldest)
+        $ToDisplay = Read-Host "Would you like to see your backups? (Y/N)"
+
+        if($ToDisplay -like "y"){
+            get-childitem -Path $DestPath -Directory | Sort-Object Fullname -Descending
+        } elseif($ToDisplay -like "n") {
+            break
+        } else {
+            Write-Host("Invalid input")
+            continue
+        }
+        break
+    }
+
+    :start while(1){
+        #ask how many of the newest backups to keep
+        [uint16]$NumToKeep = Read-Host "How many of the newest backups would you like to keep?"
+
+        #in case user asks to delete everything, double check
+        while($NumToKeep -eq 0){
+            $DeleteAll = Read-Host "Are you sure you want to delete all your backups? (Y/N)"
+
+            #if user does not want to go forward with deleting all
+            while ($DeleteAll -like "n") {
+                #ask user if they want to repeat the cycle
+                $Continue = Read-Host "Would you like to choose another number of backups to keep? (Y/N)"
+                if($Continue -like "y"){
+                    continue start  
+                } elseif($Continue -like "n"){
+                    break start 
+                } else {
+                    Write-Host("Invalid input.")
+                    continue
+                }
+            }
+
+            #if user does want to delete all
+            if($DeleteAll -like "y"){
+                get-childitem -Path $DestPath -Directory | Sort-Object Fullname -Descending | Select-Object -Skip $NumToKeep | Remove-Item -Recurse
+                break start
+            }  else {
+                Write-Host("Invalid input.")
+                continue
+            }      
+        } 
+
+        #if user wants to keep a number other than 0
+        if($NumToKeep -gt 0){
+            get-childitem -Path $DestPath -Directory | Sort-Object Fullname -Descending | Select-Object -Skip $NumToKeep | Remove-Item -Recurse
+            break
+        } else {
+            Write-Host("Invalid input.")
+            continue
+        }
+        break
+    }
+}
+
 
 #paths
 $SrcPath = 'E:\powershellTests\source'
@@ -133,6 +223,11 @@ if(Test-AGPaths -SrcPath $SrcPath -DestPath $DestPath){
 
     #perform validation/error checking
     Test-AGValidate -SrcPath $SrcPath -DestFolder $DestFolder
+
+    #get folder count in backup folder
+    Get-AGNumberOfBackups -DestPath $DestPath
+
+    Write-Host("Task complete.")
 
 } else {
     #display error message and quit
